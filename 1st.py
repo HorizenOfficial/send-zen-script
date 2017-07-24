@@ -25,9 +25,9 @@ __status__ = "Production"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Set this parameters
-SEND_TO_ADDRESS = ""
-YOUR_PRIVATE_KEY = ""
-YOUR_REDEEM_SCRIPT = ""
+SEND_TO_ADDRESS = "PUT_DESTINATION_ADDRESS_HERE"
+YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
+YOUR_REDEEM_SCRIPT = "PUT_YOUR_REDEEM_SCRIPT_HERE"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 1a) Get all CF utxo

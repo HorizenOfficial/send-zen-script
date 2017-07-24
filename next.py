@@ -18,8 +18,8 @@ __email__ = "lukas@zensystem.io"
 __status__ = "Production"
 
 
-YOUR_PRIVATE_KEY = ""
-YOUR_REDEEM_SCRIPT = ""
+YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
+YOUR_REDEEM_SCRIPT = "PUT_YOUR_REDEEM_SCRIPT_HERE"
 
 # TODO: load files in "utxo" directory
 # TODO: for every file do next signature with new private key
