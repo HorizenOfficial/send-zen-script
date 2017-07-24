@@ -143,3 +143,6 @@ fabric.properties
 .idea/modules.xml
 .idea/send-zen-script.iml
 .idea/
+
+zend
+zen-cli
