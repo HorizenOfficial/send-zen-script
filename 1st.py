@@ -29,10 +29,13 @@ SEND_TO_ADDRESS = "PUT_DESTINATION_ADDRESS_HERE"
 YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
 YOUR_REDEEM_SCRIPT = "PUT_YOUR_REDEEM_SCRIPT_HERE"
 
+UTXO_ADDRESS = "zsyF68hcYYNLPj5i4PfQJ1kUY6nsFnZkc82"
+TX_FEE = 0.0001
+
 # ----------------------------------------------------------------------------------------------------------------------
 # 1a) Get all CF utxo
 url = "https://explorer.zensystem.io/insight-api-zen/addrs/utxo"
-response = requests.post(url, data={'addrs': 'zsyF68hcYYNLPj5i4PfQJ1kUY6nsFnZkc82'})
+response = requests.post(url, data={'addrs': UTXO_ADDRESS})
 data = response.json()
 
 if response.status_code != 200:
@@ -42,11 +45,13 @@ if response.status_code != 200:
 # 1b) Get all txid to list
 UTXO_TXIDs = []
 UTXO_VOUTs = []
+UTXO_AMOUNT = []
 for d in data:
     # only txids with confirmations > 100 are considered
     if d["confirmations"] > 100:
         UTXO_TXIDs.append(d["txid"])
         UTXO_VOUTs.append(d["vout"])
+        UTXO_AMOUNT.append(d["amount"])
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 2) for each UTXO_TXID in list, get output script (hex)
@@ -81,8 +86,9 @@ for idx, UTXO_TXID in enumerate(UTXO_TXIDs):
     # {
     #    "'$NEW_ADDRESS'": 1.4999
     # }'''
-    command = "./zen-cli createrawtransaction \'[{\"txid\": \"" + str(UTXO_TXID) + "\", \"vout\": " + str(UTXO_VOUTs[idx]) + "}]\' \'{\"" + SEND_TO_ADDRESS + "\": 1.4999}\'"
-    # print command
+    command = "./zen-cli createrawtransaction \'[{\"txid\": \"" + str(UTXO_TXID) + "\", \"vout\": " \
+              + str(UTXO_VOUTs[idx]) + "}]\' \'{\"" + SEND_TO_ADDRESS + "\": " + str(UTXO_AMOUNT[idx] - TX_FEE) + "}\'"
+    print command
     proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
     (out, err) = proc.communicate()
     RAW_TRANSACTIONs.append(out)
