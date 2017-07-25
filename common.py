@@ -12,11 +12,11 @@ __status__ = "Production"
 
 
 def save(data, name):
-    with open("./utxo/" + name + '.json', 'w') as outfile:
+    with open("./next/" + name + '.json', 'w') as outfile:
         json.dump(data, outfile)
 
 
 def load(path):
-    with open(path) as json_data:
+    with open("./utxo/" + path + '.json') as json_data:
         data = json.load(json_data)
     return data
