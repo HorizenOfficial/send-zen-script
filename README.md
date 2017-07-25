@@ -4,6 +4,7 @@
     - `./zen-cli -version`
     
 # How to run
+- install Python 2.7
 - put your `zend` and `zen-cli` binaries to the `send-zen-script` folder
 - run `zend`
 - let it sync
