@@ -88,7 +88,7 @@ for idx, UTXO_TXID in enumerate(UTXO_TXIDs):
     # }'''
     command = "./zen-cli createrawtransaction \'[{\"txid\": \"" + str(UTXO_TXID) + "\", \"vout\": " \
               + str(UTXO_VOUTs[idx]) + "}]\' \'{\"" + SEND_TO_ADDRESS + "\": " + str(UTXO_AMOUNT[idx] - TX_FEE) + "}\'"
-    print command
+    # print command
     proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
     (out, err) = proc.communicate()
     RAW_TRANSACTIONs.append(out)
@@ -122,7 +122,7 @@ for idx, raw in enumerate(RAW_TRANSACTIONs):
                                                               " \"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs[idx]) + "\","\
                                                               " \"redeemScript\": \"" + str(YOUR_REDEEM_SCRIPT) + \
                                                               "\"}]\' \'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
-    print command
+    # print command
     proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
     (out, err) = proc.communicate()
     json_parsed = json.loads(out)
