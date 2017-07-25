@@ -20,7 +20,7 @@ __status__ = "Production"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Set this parameters
-TEST_NETWORK = True  # True = use -testnet, False = mainnet
+TEST_NETWORK = False  # True = it uses -testnet, False = mainnet
 SEND_TO_ADDRESS = "PUT_DESTINATION_ADDRESS_HERE"
 YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
 
@@ -109,11 +109,6 @@ if len(raw_tx) == 0:
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 3 SIGN RAW TRANSACTION
-# delete all files in utxo folder
-# filelist = [f for f in os.listdir("./next/") if f.endswith(".json")]
-# for f in filelist:
-#     os.remove(f)
-
 # ./zen-cli
 # signrawtransaction $RAW_TX
 # '''
@@ -159,4 +154,5 @@ json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": ARG2}
 
 common.save(json_data, "transaction_to_sign")
 
+print "You have to send /next/transaction_to_sign.json file to next signature"
 print "ALL OK!"

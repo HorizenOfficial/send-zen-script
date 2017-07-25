@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
-
-# from __future__ import print_function
 import subprocess
-import sys
-import os
-import urllib
 import json
-import requests
 import common
 
 __author__ = "Lukas Bures"
@@ -17,21 +11,25 @@ __maintainer__ = "Lukas Bures"
 __email__ = "lukas@zensystem.io"
 __status__ = "Production"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Set this params
+TEST_NETWORK = False  # True = it uses -testnet, False = mainnet
 YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
-ZENCLI_PATH = "./zen-cli -testnet"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# loading and setting parameters
+if TEST_NETWORK:
+    ZENCLI_PATH = "./zen-cli -testnet"
+else:
+    ZENCLI_PATH = "./zen-cli"
 
 json_data = common.load("transaction_to_sign")
 
 raw_tx = json_data["raw_tx"]
 utxo_to_sign = json_data["utxo_to_sign"]
 
+# ----------------------------------------------------------------------------------------------------------------------
 # SIGN RAW TRANSACTION
-# delete all files in next folder
-# filelist = [f for f in os.listdir("./next/") if f.endswith(".json")]
-# for f in filelist:
-#     os.remove(f)
-
 # ./zen-cli
 # signrawtransaction $RAW_TX
 # '''
@@ -68,12 +66,11 @@ if out_parsed.get("complete") is True:
     common.save(out_parsed["hex"], "transaction_complete")
     exit()
 
+# ----------------------------------------------------------------------------------------------------------------------
 # transaction is not ready yet so prepare data for the next signer
 # save to the file raw tx and prepared set of outputs to sign
-json_data = {"raw_tx" : out_parsed["hex"],
-             "utxo_to_sign" : utxo_to_sign}
-
+json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": utxo_to_sign}
 common.save(json_data, "transaction_to_sign")
 
+print "You have to send /next/transaction_to_sign.json file to next signature"
 print "ALL OK!"
-
