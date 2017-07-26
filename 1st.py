@@ -2,6 +2,7 @@
 import subprocess
 import json
 import requests
+import numpy as np
 
 __author__ = "Lukas Bures"
 __copyright__ = "Copyright 2017"
@@ -26,7 +27,7 @@ YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
 # how many UTXOx should be spent. Note that there is a maximum limit of 100KB per tx,
 # so effectively around 1900 UTXOs can be spent in one transaction
 # (this is a raw calculation, probably it could be more).
-SEND_UTXO_AMOUNT = 10  # e.g.: 10 UTXOs is equal to (10*1,5)-TX_FEE ZENs
+SEND_UTXO_AMOUNT = 255  # e.g.: 10 UTXOs is equal to (10*1,5)-TX_FEE ZENs
 TX_FEE = 0.0001
 
 if TEST_NETWORK:
@@ -68,14 +69,14 @@ if response.status_code != 200:
 UTXO_TXIDs = []
 UTXO_VOUTs = []
 UTXO_OUTPUT_SCRIPTs = []
-UTXO_TOTAL_AMOUNT = 0
+UTXO_AMOUNTs = []
 for d in data:
     # only txids with confirmations > 100 are considered
     if d["confirmations"] > 100:
         UTXO_TXIDs.append(d["txid"])
         UTXO_VOUTs.append(d["vout"])
         UTXO_OUTPUT_SCRIPTs.append(d["scriptPubKey"])
-        UTXO_TOTAL_AMOUNT += d["amount"]
+        UTXO_AMOUNTs.append(d["amount"])
 
         if len(UTXO_TXIDs) >= SEND_UTXO_AMOUNT:
             break
@@ -91,10 +92,13 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
+SIZE_OF_CHUNKS = 100
+UTXO_TXIDs_CHUNKs = list(chunks(UTXO_TXIDs, SIZE_OF_CHUNKS))
+UTXO_VOUTs_CHUNKs = list(chunks(UTXO_VOUTs, SIZE_OF_CHUNKS))
+UTXO_OUTPUT_SCRIPTs_CHUNKs = list(chunks(UTXO_OUTPUT_SCRIPTs, SIZE_OF_CHUNKS))
+UTXO_AMOUNTs_CHUNKs = list(chunks(UTXO_AMOUNTs, SIZE_OF_CHUNKS))
 
-UTXO_TXIDs_CHUNKs = list(chunks(UTXO_TXIDs, 100))
-
-for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
+for idx, (UTXO_TXIDs_CHUNK, UTXO_VOUTs_CHUNK, UTXO_OUTPUT_SCRIPTs_CHUNK, UTXO_AMOUNTs_CHUNK) in enumerate(zip(UTXO_TXIDs_CHUNKs, UTXO_VOUTs_CHUNKs, UTXO_OUTPUT_SCRIPTs_CHUNKs, UTXO_AMOUNTs_CHUNKs)):
     print "Processing chunk: " + str(idx + 1) + "/" + str(len(UTXO_TXIDs_CHUNKs))
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -118,11 +122,11 @@ for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
 
     ARG1 = "\'["
     for i in range(0, len(UTXO_TXIDs_CHUNK)):
-        ARG1 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", \"vout\": " + str(UTXO_VOUTs[i]) + "},"
+        ARG1 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", \"vout\": " + str(UTXO_VOUTs_CHUNK[i]) + "},"
     ARG1 = ARG1[:-1]  # remove comma at the end
     ARG1 += "]\'"
 
-    ARG2 = "\'{\"" + SEND_TO_ADDRESS + "\": " + str(UTXO_TOTAL_AMOUNT - TX_FEE) + "}\'"
+    ARG2 = "\'{\"" + SEND_TO_ADDRESS + "\": " + str(np.sum(UTXO_AMOUNTs_CHUNK) - TX_FEE) + "}\'"
 
     command = ZENCLI_PATH + " createrawtransaction " + ARG1 + " " + ARG2
 
@@ -156,8 +160,8 @@ for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
     ARG2 = "\'["
     for i in range(0, len(UTXO_TXIDs_CHUNK)):
         ARG2 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", " \
-                "\"vout\": " + str(UTXO_VOUTs[i]) + "," \
-                "\"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs[i]) + "\"," \
+                "\"vout\": " + str(UTXO_VOUTs_CHUNK[i]) + "," \
+                "\"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs_CHUNK[i]) + "\"," \
                 "\"redeemScript\": \"" + str(YOUR_REDEEM_SCRIPT) + "\"},"
     ARG2 = ARG2[:-1]  # remove comma at the end
     ARG2 += "]\'"
