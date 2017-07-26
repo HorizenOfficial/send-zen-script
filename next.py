@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import json
-import common
+import glob
 
 __author__ = "Lukas Bures"
 __copyright__ = "Copyright 2017"
 __license__ = "MIT"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __maintainer__ = "Lukas Bures"
 __email__ = "lukas@zensystem.io"
 __status__ = "Production"
@@ -16,6 +16,19 @@ __status__ = "Production"
 TEST_NETWORK = False  # True = it uses -testnet, False = mainnet
 YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# IO functions
+def save(data, path):
+    with open(path, 'w') as outfile:
+        json.dump(data, outfile)
+
+
+def load(path):
+    with open(path) as json_data:
+        data = json.load(json_data)
+    return data
+
 # ----------------------------------------------------------------------------------------------------------------------
 # loading and setting parameters
 if TEST_NETWORK:
@@ -23,54 +36,67 @@ if TEST_NETWORK:
 else:
     ZENCLI_PATH = "./zen-cli"
 
-json_data = common.load("transaction_to_sign")
+paths = glob.glob("./utxo/transaction_to_sign_*.json")
 
-raw_tx = json_data["raw_tx"]
-utxo_to_sign = json_data["utxo_to_sign"]
+for idx, path in enumerate(paths):
+    print "Processing:" + path
+    json_data = load(path)
 
-# ----------------------------------------------------------------------------------------------------------------------
-# SIGN RAW TRANSACTION
-# ./zen-cli
-# signrawtransaction $RAW_TX
-# '''
-# [
-#    {
-#       "txid": "'$UTXO_TXID'",
-#       "vout": '$UTXO_VOUT',
-#       "scriptPubKey": "'$UTXO_OUTPUT_SCRIPT'",
-#       "redeemScript": "'$redeemScript'"
-#    }
-# ]
-# ''' '''
-# [
-#    “PRIVATE_KEY1"
-# ]'''
+    raw_tx = json_data["raw_tx"]
+    utxo_to_sign = json_data["utxo_to_sign"]
 
-ARG1 = "\'" + raw_tx + "\'"
-ARG3 = "\'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
+    # ------------------------------------------------------------------------------------------------------------------
+    # SIGN RAW TRANSACTION
+    # ./zen-cli
+    # signrawtransaction $RAW_TX
+    # '''
+    # [
+    #    {
+    #       "txid": "'$UTXO_TXID'",
+    #       "vout": '$UTXO_VOUT',
+    #       "scriptPubKey": "'$UTXO_OUTPUT_SCRIPT'",
+    #       "redeemScript": "'$redeemScript'"
+    #    }
+    # ]
+    # ''' '''
+    # [
+    #    “PRIVATE_KEY1"
+    # ]'''
 
-command = ZENCLI_PATH + " signrawtransaction " + ARG1 + " " + utxo_to_sign + " " + ARG3
+    ARG1 = "\'" + raw_tx + "\'"
+    ARG3 = "\'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
 
-# print command
-proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
-(out, err) = proc.communicate()
+    command = ZENCLI_PATH + " signrawtransaction " + ARG1 + " " + utxo_to_sign + " " + ARG3
 
-if len(out) == 0:
-    raise Exception("Bad signrawtransaction command")
+    # print command
+    proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
 
-out_parsed = json.loads(out)
+    if len(out) == 0:
+        raise Exception("Bad signrawtransaction command")
 
-if out_parsed.get("complete") is True:
-    print "Signing complete! Transaction can be sent to the network!"
-    print "Raw transaction: " + out_parsed["hex"]
-    common.save(out_parsed["hex"], "transaction_complete")
-    exit()
+    out_parsed = json.loads(out)
 
-# ----------------------------------------------------------------------------------------------------------------------
-# transaction is not ready yet so prepare data for the next signer
-# save to the file raw tx and prepared set of outputs to sign
-json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": utxo_to_sign}
-common.save(json_data, "transaction_to_sign")
+    if out_parsed.get("complete") is True:
+        print "Signing complete! Transaction can be sent to the network!"
+        print "Raw transaction: " + out_parsed["hex"]
+        print "Saving raw transaction to the file:" + "./next/transaction_complete_" + str(idx) + ".json"
+        save(out_parsed["hex"], "./next/transaction_complete_" + str(idx) + ".json")
 
-print "You have to send /next/transaction_to_sign.json file to next signature"
+        # --------------------------------------------------------------------------------------------------------------
+        # sendrawtransaction
+        print "Spending raw transaction ...",
+        ARG1 = "\"" + str(out_parsed["hex"]) + "\""
+
+        command = ZENCLI_PATH + " sendrawtransaction " + ARG1
+        proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+        print "done"
+        print ""
+    else:
+        # transaction is not ready yet so prepare data for the next signer
+        # save to the file raw tx and prepared set of outputs to sign
+        json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": utxo_to_sign}
+        save(json_data, path.replace("utxo", "next"))
+
+print "You have to send /next/transaction_to_sign_X.json files (where X is number of chunk) to next signature."
 print "ALL OK!"

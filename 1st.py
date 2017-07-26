@@ -2,12 +2,11 @@
 import subprocess
 import json
 import requests
-import common
 
 __author__ = "Lukas Bures"
 __copyright__ = "Copyright 2017"
 __license__ = "MIT"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __maintainer__ = "Lukas Bures"
 __email__ = "lukas@zensystem.io"
 __status__ = "Production"
@@ -43,6 +42,19 @@ else:
     YOUR_REDEEM_SCRIPT = "PUT_REDEEM_SCRIPT_HERE"
     URL = "https://explorer.zensystem.io/insight-api-zen/addrs/utxo"
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# IO functions
+def save(data, name):
+    with open("./next/" + name + '.json', 'w') as outfile:
+        json.dump(data, outfile)
+
+
+def load(path):
+    with open("./utxo/" + path + '.json') as json_data:
+        data = json.load(json_data)
+    return data
+
 # ----------------------------------------------------------------------------------------------------------------------
 # 1a) Get all CF utxo
 response = requests.post(URL, data={'addrs': UTXO_ADDRESS})
@@ -71,88 +83,102 @@ for d in data:
 if len(UTXO_TXIDs) != SEND_UTXO_AMOUNT:
     raise Exception("Not enough funds. Only " + str(len(UTXO_TXIDs)) + "spendable UTXOs were found.")
 
-# ----------------------------------------------------------------------------------------------------------------------
-# 2 CREATE RAW TRANSACTION
-# ./zen-cli
-# createrawtransaction
-# '''
-# [
-#    {
-#       "txid": "'$UTXO_TXID'",
-#       "vout": '$UTXO_VOUT'
-#    },
-#    {
-#       ...
-#    }
-# ]
-# ''' '''
-# {
-#    "'$NEW_ADDRESS'": 1.4999
-# }'''
-
-ARG1 = "\'["
-for i in range(0, len(UTXO_TXIDs)):
-    ARG1 += "{\"txid\": \"" + str(UTXO_TXIDs[i]) + "\", \"vout\": " + str(UTXO_VOUTs[i]) + "},"
-ARG1 = ARG1[:-1]  # remove comma at the end
-ARG1 += "]\'"
-
-ARG2 = "\'{\"" + SEND_TO_ADDRESS + "\": " + str(UTXO_TOTAL_AMOUNT - TX_FEE) + "}\'"
-
-command = ZENCLI_PATH + " createrawtransaction " + ARG1 + " " + ARG2
-
-# print command
-proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
-(raw_tx, err) = proc.communicate()
-
-if len(raw_tx) == 0:
-    raise Exception("Bad createrawtransaction command")
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 3 SIGN RAW TRANSACTION
-# ./zen-cli
-# signrawtransaction $RAW_TX
-# '''
-# [
-#    {
-#       "txid": "'$UTXO_TXID'",
-#       "vout": '$UTXO_VOUT',
-#       "scriptPubKey": "'$UTXO_OUTPUT_SCRIPT'",
-#       "redeemScript": "'$redeemScript'"
-#    }
-# ]
-# ''' '''
-# [
-#    “PRIVATE_KEY1"
-# ]'''
+# split list to the chunks
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
-ARG1 = "\'" + raw_tx.strip() + "\'"
 
-ARG2 = "\'["
-for i in range(0, len(UTXO_TXIDs)):
-    ARG2 += "{\"txid\": \"" + str(UTXO_TXIDs[i]) + "\", " \
-            "\"vout\": " + str(UTXO_VOUTs[i]) + "," \
-            "\"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs[i]) + "\"," \
-            "\"redeemScript\": \"" + str(YOUR_REDEEM_SCRIPT) + "\"},"
-ARG2 = ARG2[:-1]  # remove comma at the end
-ARG2 += "]\'"
+UTXO_TXIDs_CHUNKs = list(chunks(UTXO_TXIDs, 100))
 
-ARG3 = "\'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
+for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
+    print "Processing chunk: " + str(idx + 1) + "/" + str(len(UTXO_TXIDs_CHUNKs))
 
-command = ZENCLI_PATH + " signrawtransaction " + ARG1 + " " + ARG2 + " " + ARG3
+    # ------------------------------------------------------------------------------------------------------------------
+    # 2 CREATE RAW TRANSACTION
+    # ./zen-cli
+    # createrawtransaction
+    # '''
+    # [
+    #    {
+    #       "txid": "'$UTXO_TXID'",
+    #       "vout": '$UTXO_VOUT'
+    #    },
+    #    {
+    #       ...
+    #    }
+    # ]
+    # ''' '''
+    # {
+    #    "'$NEW_ADDRESS'": 1.4999
+    # }'''
 
-# print command
-proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
-(out, _) = proc.communicate()
+    ARG1 = "\'["
+    for i in range(0, len(UTXO_TXIDs)):
+        ARG1 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", \"vout\": " + str(UTXO_VOUTs[i]) + "},"
+    ARG1 = ARG1[:-1]  # remove comma at the end
+    ARG1 += "]\'"
 
-if len(out) == 0:
-    raise Exception("Bad signrawtransaction command")
+    ARG2 = "\'{\"" + SEND_TO_ADDRESS + "\": " + str(UTXO_TOTAL_AMOUNT - TX_FEE) + "}\'"
 
-out_parsed = json.loads(out)
+    command = ZENCLI_PATH + " createrawtransaction " + ARG1 + " " + ARG2
 
-# save to the file raw tx and prepared set of outputs to sign
-json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": ARG2}
+    # print command
+    proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+    (raw_tx, err) = proc.communicate()
 
-common.save(json_data, "transaction_to_sign")
+    if len(raw_tx) == 0:
+        raise Exception("Bad createrawtransaction command")
 
-print "You have to send /next/transaction_to_sign.json file to next signature"
+    # ------------------------------------------------------------------------------------------------------------------
+    # 3 SIGN RAW TRANSACTION
+    # ./zen-cli
+    # signrawtransaction $RAW_TX
+    # '''
+    # [
+    #    {
+    #       "txid": "'$UTXO_TXID'",
+    #       "vout": '$UTXO_VOUT',
+    #       "scriptPubKey": "'$UTXO_OUTPUT_SCRIPT'",
+    #       "redeemScript": "'$redeemScript'"
+    #    }
+    # ]
+    # ''' '''
+    # [
+    #    “PRIVATE_KEY1"
+    # ]'''
+
+    ARG1 = "\'" + raw_tx.strip() + "\'"
+
+    ARG2 = "\'["
+    for i in range(0, len(UTXO_TXIDs)):
+        ARG2 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", " \
+                "\"vout\": " + str(UTXO_VOUTs[i]) + "," \
+                "\"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs[i]) + "\"," \
+                "\"redeemScript\": \"" + str(YOUR_REDEEM_SCRIPT) + "\"},"
+    ARG2 = ARG2[:-1]  # remove comma at the end
+    ARG2 += "]\'"
+
+    ARG3 = "\'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
+
+    command = ZENCLI_PATH + " signrawtransaction " + ARG1 + " " + ARG2 + " " + ARG3
+
+    # print command
+    proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+    (out, _) = proc.communicate()
+
+    if len(out) == 0:
+        raise Exception("Bad signrawtransaction command")
+
+    out_parsed = json.loads(out)
+
+    # save to the file raw tx and prepared set of outputs to sign
+    json_data = {"raw_tx": out_parsed["hex"], "utxo_to_sign": ARG2}
+
+    save(json_data, "transaction_to_sign_" + str(idx))
+
+print "You have to send /next/transaction_to_sign_X.json files (where X is number of chunk) to next signature."
 print "ALL OK!"
