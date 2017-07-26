@@ -117,7 +117,7 @@ for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
     # }'''
 
     ARG1 = "\'["
-    for i in range(0, len(UTXO_TXIDs)):
+    for i in range(0, len(UTXO_TXIDs_CHUNK)):
         ARG1 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", \"vout\": " + str(UTXO_VOUTs[i]) + "},"
     ARG1 = ARG1[:-1]  # remove comma at the end
     ARG1 += "]\'"
@@ -154,7 +154,7 @@ for idx, UTXO_TXIDs_CHUNK in enumerate(UTXO_TXIDs_CHUNKs):
     ARG1 = "\'" + raw_tx.strip() + "\'"
 
     ARG2 = "\'["
-    for i in range(0, len(UTXO_TXIDs)):
+    for i in range(0, len(UTXO_TXIDs_CHUNK)):
         ARG2 += "{\"txid\": \"" + str(UTXO_TXIDs_CHUNK[i]) + "\", " \
                 "\"vout\": " + str(UTXO_VOUTs[i]) + "," \
                 "\"scriptPubKey\": \"" + str(UTXO_OUTPUT_SCRIPTs[i]) + "\"," \
