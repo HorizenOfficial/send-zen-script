@@ -15,7 +15,9 @@ __status__ = "Production"
 # Set this params
 TEST_NETWORK = False  # True = it uses -testnet, False = mainnet
 YOUR_PRIVATE_KEY = "PUT_YOUR_PRIVATE_KEY_HERE"
-
+ZEN_RPC_IP = "127.0.0.1"
+ZEN_RPC_USER="PUT_YOUR_ZEND_RPC_USER_HERE"
+ZEN_RPC_PASSWORD="PUT_YOUR_ZEND_RPC_PASSWORD_HERE"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # IO functions
@@ -32,11 +34,12 @@ def load(path):
 # ----------------------------------------------------------------------------------------------------------------------
 # loading and setting parameters
 if TEST_NETWORK:
-    ZENCLI_PATH = "./zen-cli -testnet"
+    ZEN_RPC_PORT="18231"
 else:
-    ZENCLI_PATH = "./zen-cli"
+    ZEN_RPC_PORT="8231"
 
 paths = glob.glob("./utxo/transaction_to_sign_*.json")
+postpath = "./postdata.json"
 
 for idx, path in enumerate(paths):
     print "Processing:" + path
@@ -44,6 +47,7 @@ for idx, path in enumerate(paths):
 
     raw_tx = json_data["raw_tx"]
     utxo_to_sign = json_data["utxo_to_sign"]
+    utxo_to_sign_no_singlequote = utxo_to_sign.replace("'", "")
 
     # ------------------------------------------------------------------------------------------------------------------
     # SIGN RAW TRANSACTION
@@ -63,19 +67,21 @@ for idx, path in enumerate(paths):
     #    “PRIVATE_KEY1"
     # ]'''
 
-    ARG1 = "\'" + raw_tx + "\'"
-    ARG3 = "\'[\"" + str(YOUR_PRIVATE_KEY) + "\"]\'"
+    POSTDATA = {"jsonrpc": "1.0", "id":"curltest", "method": "signrawtransaction", "params": [ raw_tx, json.loads(utxo_to_sign_no_singlequote) ,[YOUR_PRIVATE_KEY]]}
+    save(POSTDATA, postpath)
 
-    command = ZENCLI_PATH + " signrawtransaction " + ARG1 + " " + utxo_to_sign + " " + ARG3
+    command = "curl -H 'content-type: text/plain;' -d \"@" + postpath + "\" http://" + ZEN_RPC_USER + ":" + ZEN_RPC_PASSWORD + "@" + ZEN_RPC_IP + ":" + str(ZEN_RPC_PORT)
 
-    # print command
     proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
     (out, err) = proc.communicate()
+
+    # overwrite postdata.json, contains privkey
+    save({}, postpath)
 
     if len(out) == 0:
         raise Exception("Bad signrawtransaction command")
 
-    out_parsed = json.loads(out)
+    out_parsed = json.loads(out)["result"]
 
     if out_parsed.get("complete") is True:
         print "Signing complete! Transaction can be sent to the network!"
@@ -86,9 +92,9 @@ for idx, path in enumerate(paths):
         # --------------------------------------------------------------------------------------------------------------
         # sendrawtransaction
         print "Spending raw transaction ...",
-        ARG1 = "\"" + str(out_parsed["hex"]) + "\""
+        POSTDATA = {"jsonrpc": "1.0", "id":"curltest", "method": "sendrawtransaction", "params": [out_parsed["hex"]]}
+        save(POSTDATA, postpath)
 
-        command = ZENCLI_PATH + " sendrawtransaction " + ARG1
         proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
         print "done"
         print ""

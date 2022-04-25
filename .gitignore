@@ -147,3 +147,4 @@ fabric.properties
 zend
 zen-cli
 .DS_Store
+*.json
